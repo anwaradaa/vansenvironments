@@ -1,0 +1,197 @@
+x-logging:
+      &default-logging
+      driver: "json-file"
+      options:
+        max-size: "1m"
+
+networks:
+  default:
+    name: ${PROJECT_NAME}
+    driver: bridge
+
+services:
+  nginx:
+    image: nginx
+    container_name: ${PROJECT_NAME}_nginx
+    volumes:
+      - ../docroot:/home/magento:cached
+    restart: unless-stopped
+    labels:
+    - "traefik.http.routers.${PROJECT_NAME}_nginx.rule=Host(`vansmy${PROJECT_VIRTUAL_HOST}`, `vanshk${PROJECT_VIRTUAL_HOST}`, `vanssg${PROJECT_VIRTUAL_HOST}`)"
+    - "traefik.enable=true"
+    logging: *default-logging
+
+
+  php-fpm:
+    image: php-fpm
+    container_name: ${PROJECT_NAME}_phpfpm
+    volumes:
+      - ../docroot:/home/magento:cached
+      - ./php-fpm/php.ini:/etc/php.ini
+      - /root/.config/composer/auth.json:/root/.config/composer/auth.json
+      - ../docroot:/app:cached
+      - ./config/:/config/
+      - ./config/.ssh:/home/magento/.ssh
+    environment:
+      XDEBUG_CONFIG: "client_host=localhost"
+      PHP_IDE_CONFIG: "serverName=Docker"
+      PUID: 2000
+      PGID: 2000
+      TZ: Etc/UTC
+      SUDO_PASSWORD: "password" #optional
+      PROXY_DOMAIN: code.${PROJECT_VIRTUAL_HOST} #optional
+      DEFAULT_WORKSPACE: /home/magento #optional
+    restart: unless-stopped
+    labels:
+    - "traefik.http.routers.${PROJECT_NAME}_code.rule=Host(`code.${PROJECT_VIRTUAL_HOST}`)"
+    - "traefik.http.routers.${PROJECT_NAME}_code.service=${PROJECT_NAME}_code"
+    - "traefik.http.services.${PROJECT_NAME}_code.loadbalancer.server.port=8443"
+    - "traefik.enable=true"
+    logging: *default-logging
+
+  varnish:
+    container_name: "${PROJECT_NAME}_varnish"
+    image: varnish
+    environment:
+      - CACHE_SIZE=6G
+    restart: unless-stopped
+    labels:
+    - "traefik.http.routers.${PROJECT_NAME}_varnish.rule=Host(`varnish.${PROJECT_VIRTUAL_HOST}`)"
+    - "traefik.enable=true"
+    logging: *default-logging
+
+#  cache:
+#    container_name: "${PROJECT_NAME}_cache"
+#    image: fballiano/redis-volatile:M2.4.6
+#    logging: *default-logging
+
+#  clusterdata:
+#    container_name: "${PROJECT_NAME}_clusterdata"
+#    image: fballiano/redis-volatile:M2.4.6
+#    logging: *default-logging
+#
+#  sessions:
+#    container_name: "${PROJECT_NAME}_sessions"
+#    image: redis:6.2
+#    logging: *default-logging
+#
+  redis:
+    image: redis:6.2
+    container_name: ${PROJECT_NAME}_redis
+    restart: unless-stopped
+    logging: *default-logging
+    command: redis-server --databases 30 --maxmemory 8gb --maxmemory-policy allkeys-lru
+    volumes:
+      - ./redisdata:/redisdata
+    sysctls:
+      - net.core.somaxconn=511
+
+#
+#  mysql:
+#    platform: linux/x86_64
+#    image: mysql
+#    container_name: ${PROJECT_NAME}_mysql
+#    volumes:
+#      - mysql:/var/lib/mysql
+#    environment:
+#      MYSQL_DATABASE: 'magento_db'
+#      MYSQL_ROOT_PASSWORD: 'root_pass'
+#      MYSQL_USER: 'magento_user'
+#      MYSQL_PASSWORD: 'magento_password'
+#      MYSQL_ALLOW_EMPTY_PASSWORD: 'false'
+#    restart: unless-stopped
+#    logging: *default-logging
+
+
+  mysql:
+    image: mysql:8.0
+    container_name: "${PROJECT_NAME}_mysql"
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: ${PROJECT_NAME}
+      MYSQL_USER: ${PROJECT_NAME}
+      MYSQL_PASSWORD: ${PROJECT_NAME}
+      MYSQL_ALLOW_EMPTY_PASSWORD: 'false'
+    volumes:
+      - ./my.cnf:/etc/mysql/my.cnf  # Load the MySQL configuration from the current folder
+      - ./data:/var/lib/mysql        # Persistent data storage
+      - ./dumps:/dumps
+    ports:
+      - "3307:3306"
+    restart: always
+
+
+  pma:
+    image: phpmyadmin/phpmyadmin
+    container_name: "${PROJECT_NAME}_pma"
+    environment:
+      PMA_HOST: mysql
+      PMA_USER: root
+      PMA_PASSWORD: root_password
+      UPLOAD_LIMIT: 10G
+    labels:
+    - "traefik.http.routers.${PROJECT_NAME}_pma.rule=Host(`pma.${PROJECT_VIRTUAL_HOST}`)"
+    - "traefik.enable=true"
+    logging: *default-logging
+    ports:
+    - "8085:80"
+
+  mailhog:
+    image: mailhog/mailhog
+    container_name: ${PROJECT_NAME}_mailhog
+    restart: unless-stopped
+    labels:
+    - "traefik.http.services.${PROJECT_NAME}_mailhog.loadbalancer.server.port=8025"
+    - "traefik.http.routers.${PROJECT_NAME}_mailhog.rule=Host(`mail.${PROJECT_VIRTUAL_HOST}`)"
+    - "traefik.http.routers.${PROJECT_NAME}_mailhog.service=${PROJECT_NAME}_mailhog"
+    - "traefik.enable=true"
+    logging: *default-logging
+
+  rabbitmq:
+    image: rabbitmq:3.9-management
+    container_name: ${PROJECT_NAME}_rabbitmq
+    labels:
+    - "traefik.http.services.${PROJECT_NAME}_rabbit.loadbalancer.server.port=15672"
+    - "traefik.http.routers.${PROJECT_NAME}_rabbit.rule=Host(`rabbit.${PROJECT_VIRTUAL_HOST}`)"
+    - "traefik.enable=true"
+    expose:
+      - 15672
+    restart: unless-stopped
+    logging: *default-logging
+
+  elasticsearch:
+    image: elasticsearch:7.16.3
+    container_name: ${PROJECT_NAME}_elasticsearch
+    environment:
+      - "discovery.type=single-node"
+      ## Set custom heap size to avoid memory errors
+      - "ES_JAVA_OPTS=-Xms2g -Xmx2g"
+    expose:
+      - 9200
+    restart: unless-stopped
+    labels:
+    - "traefik.http.services.${PROJECT_NAME}_elastic.loadbalancer.server.port=9200"
+    - "traefik.http.routers.${PROJECT_NAME}_elastic.rule=Host(`elastic.${PROJECT_VIRTUAL_HOST}`)"
+    - "traefik.enable=true"
+    logging: *default-logging
+
+  traefik:
+    image: traefik:v2.0
+    container_name: "${PROJECT_NAME}_traefik"
+    command:
+    - --api.insecure=true
+    - --providers.docker
+    - --entrypoints.web.address=:80
+    - --entryPoints.web.forwardedHeaders.insecure
+    - --log.level=DEBUG
+#    - --log.level=DEBUG
+    - --accesslog=true
+    ports:
+    - "${PORT}:80"
+    - "8083:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    labels:
+    - "traefik.http.services.${PROJECT_NAME}_traefik.loadbalancer.server.port=8080"
+    - "traefik.http.routers.${PROJECT_NAME}_traefik.rule=Host(`traefik.${PROJECT_VIRTUAL_HOST}`)"
+    logging: *default-logging
