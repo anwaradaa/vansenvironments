@@ -21,8 +21,7 @@ services:
     - "traefik.http.routers.${PROJECT_NAME}_nginx.rule=Host(`vansmy${PROJECT_VIRTUAL_HOST}`, `vanshk${PROJECT_VIRTUAL_HOST}`, `vanssg${PROJECT_VIRTUAL_HOST}`)"
     - "traefik.enable=true"
     logging: *default-logging
-    env_file:
-      - stack.env
+
 
   php-fpm:
     image: ${REGISTRY}/php-fpm-magento
@@ -49,8 +48,7 @@ services:
     logging: *default-logging
     ports:
     - "${PORT_PREFIX}1:8443"
-    env_file:
-      - stack.env
+
 
   varnish:
     container_name: "${PROJECT_NAME}_varnish"
@@ -62,8 +60,7 @@ services:
     - "traefik.http.routers.${PROJECT_NAME}_varnish.rule=Host(`varnish.${PROJECT_VIRTUAL_HOST}`)"
     - "traefik.enable=true"
     logging: *default-logging
-    env_file:
-      - stack.env
+
 
 #  cache:
 #    container_name: "${PROJECT_NAME}_cache"
@@ -90,8 +87,6 @@ services:
       - ${ENV_PATH}/redisdata:/redisdata
     sysctls:
       - net.core.somaxconn=511
-    env_file:
-      - stack.env
 
 
   mysql:
@@ -111,8 +106,6 @@ services:
       - "3307:3306"
     restart: unless-stopped
     logging: *default-logging
-    env_file:
-      - stack.env
 
 
   pma:
@@ -129,8 +122,6 @@ services:
     logging: *default-logging
     ports:
     - "${PORT_PREFIX}5:80"
-    env_file:
-      - stack.env
 
 
   mailhog:
@@ -145,8 +136,6 @@ services:
     logging: *default-logging
     ports:
     - "${PORT_PREFIX}6:80"
-    env_file:
-      - stack.env
 
 
   rabbitmq:
@@ -160,8 +149,6 @@ services:
       - 15672
     restart: unless-stopped
     logging: *default-logging
-    env_file:
-      - stack.env
 
 
   elasticsearch:
@@ -179,8 +166,6 @@ services:
     - "traefik.http.routers.${PROJECT_NAME}_elastic.rule=Host(`elastic.${PROJECT_VIRTUAL_HOST}`)"
     - "traefik.enable=true"
     logging: *default-logging
-    env_file:
-      - stack.env
 
   traefik:
     image: traefik:v2.0
@@ -202,5 +187,3 @@ services:
     - "traefik.http.services.${PROJECT_NAME}_traefik.loadbalancer.server.port=8080"
     - "traefik.http.routers.${PROJECT_NAME}_traefik.rule=Host(`traefik.${PROJECT_VIRTUAL_HOST}`)"
     logging: *default-logging
-    env_file:
-      - stack.env
