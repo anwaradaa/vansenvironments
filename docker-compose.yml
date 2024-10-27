@@ -12,7 +12,7 @@ networks:
 
 services:
   nginx:
-    image: nginx
+    image: nginx_magento
     container_name: ${PROJECT_NAME}_nginx
     volumes:
       - ${DOCROOT}:/home/magento:cached
