@@ -102,8 +102,6 @@ services:
 #      - ${ENV_PATH}/my.cnf:/etc/mysql/my.cnf  # Load the MySQL configuration from the current folder
       - ${ENV_PATH}/data:/var/lib/mysql        # Persistent data storage
       - ${ENV_PATH}/dumps:/dumps
-    ports:
-      - "3307:3306"
     restart: unless-stopped
     logging: *default-logging
 
