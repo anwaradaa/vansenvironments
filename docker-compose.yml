@@ -12,7 +12,7 @@ networks:
 
 services:
   nginx:
-    image: nginx_magento
+    image: ${REGISTRY}/nginx_magento
     container_name: ${PROJECT_NAME}_nginx
     volumes:
       - ${DOCROOT}:/home/magento:cached
@@ -25,7 +25,7 @@ services:
       - stack.env
 
   php-fpm:
-    image: php-fpm
+    image: ${REGISTRY}/php-fpm-magento
     container_name: ${PROJECT_NAME}_phpfpm
     volumes:
       - ${DOCROOT}:/home/magento:cached
