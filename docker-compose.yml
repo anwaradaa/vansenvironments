@@ -158,8 +158,8 @@ services:
       - "discovery.type=single-node"
       ## Set custom heap size to avoid memory errors
       - "ES_JAVA_OPTS=-Xms2g -Xmx2g"
-    expose:
-      - 9200
+    ports:
+    - "${PORT_PREFIX}9:9200"
     restart: unless-stopped
     labels:
     - "traefik.http.services.${PROJECT_NAME}_elastic.loadbalancer.server.port=9200"
